@@ -10,8 +10,8 @@ function tag(v){return v.trim().toUpperCase().replace(/^#?/,'#').replace(/O/g,'0
 function busy(f,b){f.querySelector('button').disabled=b;}
 if(page==='register'){var f=$('form');f.addEventListener('submit',async function(){
  var pt=tag($('player_tag').value),ct=$('clan_tag').value.trim()?tag($('clan_tag').value):'';
- if(!TAG.test(pt))return say('Enter a valid player tag, like #ABC123.',true);
- if(ct&&!TAG.test(ct))return say('Enter a valid clan tag, like #XYZ789, or leave it empty.',true);
+ if(!TAG.test(pt))return say('Enter a valid player tag, like #2PYLQ80.',true);
+ if(ct&&!TAG.test(ct))return say('Enter a valid clan tag, like #2PYLQ80, or leave it empty.',true);
  if($('password').value.length<8)return say('Use a password with at least 8 characters.',true);
  busy(f,true);
  var r=await sb.auth.signUp({email:$('email').value.trim(),password:$('password').value,options:{emailRedirectTo:location.origin+'/login.html',data:{player_name:$('player_name').value.trim(),player_tag:pt,clan_name:$('clan_name').value.trim(),clan_tag:ct}}});
@@ -35,6 +35,16 @@ if(page==='account'){(async function(){
  $('v_name').textContent=d.player_name;$('v_tag').textContent=d.player_tag;
  $('v_clan').textContent=d.clan_name||'None';$('v_ctag').textContent=d.clan_tag||'None';
  $('v_status').textContent=d.tag_verified?'Verified':'Not verified yet';$('v_email').textContent=s.user.email;
+ $('verify').hidden=!!d.tag_verified;
+ $('vform').addEventListener('submit',async function(){
+  busy($('vform'),true);
+  var r=await sb.functions.invoke('verify-player',{body:{token:$('vtoken').value.trim()}});
+  busy($('vform'),false);
+  var o=r.data||{};
+  if(!o.message)return say('Something went wrong. Please log in again and retry.',true);
+  say(o.message,!o.ok);
+  if(o.ok){$('v_status').textContent='Verified';$('verify').hidden=true;}
+ });
  $('logout').addEventListener('click',async function(){await sb.auth.signOut();location.href='login.html';});
 })();}
 if(page==='reset'){
