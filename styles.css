@@ -18,3 +18,13 @@ article h3{margin:0 0 4px;font:700 1.25rem Georgia,serif}
 .date{color:var(--muted);font-size:.9rem}
 footer{border-top:1px solid var(--line);margin-top:64px;padding:24px 0 36px;color:var(--muted);font-size:.9rem}
 @media (prefers-reduced-motion:no-preference){a{transition:color .15s}}
+form{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px 22px;margin:20px 0}
+label{display:block;margin:14px 0 4px;font-weight:600}
+input[type=text],input[type=email],input[type=password]{width:100%;padding:11px 12px;font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:8px}
+input:focus-visible{outline:3px solid var(--gold);outline-offset:1px}
+.check{display:flex;gap:10px;align-items:flex-start;font-weight:400}
+button{margin-top:18px;padding:12px 20px;font:700 1rem system-ui,sans-serif;background:var(--gold);color:#1a1530;border:0;border-radius:8px;cursor:pointer}
+button:disabled{opacity:.6;cursor:wait}
+#msg{min-height:1.5em;margin:12px 0;font-weight:600}.err{color:#ff9b9b}.ok{color:#9be6b0}
+dl{display:grid;grid-template-columns:max-content 1fr;gap:8px 18px}dt{color:var(--muted)}dd{margin:0}
+[hidden]{display:none!important}
