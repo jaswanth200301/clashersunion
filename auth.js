@@ -41,7 +41,11 @@ if(page==='account'){(async function(){
   var r=await sb.functions.invoke('verify-player',{body:{token:$('vtoken').value.trim()}});
   busy($('vform'),false);
   var o=r.data||{};
-  if(!o.message)return say('Something went wrong. Please log in again and retry.',true);
+  if(!o.message){
+   var er=r.error||{},st=er.context&&er.context.status,det='';
+   if(er.context&&er.context.json){try{var j=await er.context.json();det=j.message||j.msg||j.error||JSON.stringify(j);}catch(x){}}
+   return say('Could not reach the verification service ('+(er.name||'error')+(st?' '+st:'')+(det?': '+det:'')+').',true);
+  }
   say(o.message,!o.ok);
   if(o.ok){$('v_status').textContent='Verified';$('verify').hidden=true;}
  });
