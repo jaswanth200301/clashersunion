@@ -49,6 +49,14 @@ if(page==='account'){(async function(){
   say(o.message,!o.ok);
   if(o.ok){$('v_status').textContent='Verified';$('verify').hidden=true;}
  });
+ $('dform').addEventListener('submit',async function(){
+  if($('dconfirm').value.trim()!=='DELETE')return say('Type DELETE in capital letters to confirm.',true);
+  busy($('dform'),true);
+  var r=await sb.functions.invoke('super-api',{body:{action:'delete',confirm:'DELETE'}});
+  var o=r.data||{};
+  if(!o.ok){busy($('dform'),false);return say(o.message||'We could not delete your account. Please email us.',true);}
+  await sb.auth.signOut();location.href='index.html';
+ });
  $('logout').addEventListener('click',async function(){await sb.auth.signOut();location.href='login.html';});
 })();}
 if(page==='reset'){
