@@ -5,6 +5,10 @@ function say(t,bad){box.textContent=t;box.className=bad?'err':'ok';}
 document.querySelectorAll('form').forEach(function(f){f.addEventListener('submit',function(e){e.preventDefault();});});
 if(!window.supabase||String(C.SUPABASE_URL).indexOf('PASTE')===0||String(C.SUPABASE_PUBLISHABLE_KEY).indexOf('PASTE')===0){say('Accounts are not set up yet. Add the project URL and publishable key in config.js.',true);return;}
 var sb=window.supabase.createClient(C.SUPABASE_URL,C.SUPABASE_PUBLISHABLE_KEY);
+var CF=C.TURNSTILE_SITE_KEY&&String(C.TURNSTILE_SITE_KEY).indexOf('PASTE')!==0,wid=null;
+if(CF&&$('cf')){var tw=setInterval(function(){if(window.turnstile){clearInterval(tw);wid=window.turnstile.render('#cf',{sitekey:C.TURNSTILE_SITE_KEY,theme:'dark'});}},200);}
+function capt(){if(!CF)return{ok:true,opt:{}};var k=wid!==null?window.turnstile.getResponse(wid):'';if(!k){say('Please complete the check first.',true);return{ok:false};}return{ok:true,opt:{captchaToken:k}};}
+function recap(){if(CF&&wid!==null)window.turnstile.reset(wid);}
 var TAG=/^#[0289PYLQGRJCUV]{3,12}$/;
 function tag(v){return v.trim().toUpperCase().replace(/^#?/,'#').replace(/O/g,'0');}
 function busy(f,b){f.querySelector('button').disabled=b;}
@@ -13,16 +17,18 @@ if(page==='register'){var f=$('form');f.addEventListener('submit',async function
  if(!TAG.test(pt))return say('Enter a valid player tag, like #2PYLQ80.',true);
  if(ct&&!TAG.test(ct))return say('Enter a valid clan tag, like #2PYLQ80, or leave it empty.',true);
  if($('password').value.length<8)return say('Use a password with at least 8 characters.',true);
+ var cp=capt();if(!cp.ok)return;
  busy(f,true);
- var r=await sb.auth.signUp({email:$('email').value.trim(),password:$('password').value,options:{emailRedirectTo:location.origin+'/login.html',data:{player_name:$('player_name').value.trim(),player_tag:pt,clan_name:$('clan_name').value.trim(),clan_tag:ct}}});
- busy(f,false);
+ var r=await sb.auth.signUp({email:$('email').value.trim(),password:$('password').value,options:{captchaToken:cp.opt.captchaToken,emailRedirectTo:location.origin+'/login.html',data:{player_name:$('player_name').value.trim(),player_tag:pt,clan_name:$('clan_name').value.trim(),clan_tag:ct}}});
+ busy(f,false);recap();
  if(r.error)return say('We could not create the account. Check your details. This player tag may already be registered.',true);
  f.reset();say('Almost done. Open the email we sent you, confirm your address, then log in.');
 });}
 if(page==='login'){var g=$('form');g.addEventListener('submit',async function(){
+ var cp=capt();if(!cp.ok)return;
  busy(g,true);
- var r=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});
- busy(g,false);
+ var r=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value,options:{captchaToken:cp.opt.captchaToken}});
+ busy(g,false);recap();
  if(r.error)return say('Wrong email or password, or your email is not confirmed yet.',true);
  location.href='account.html';
 });}
@@ -109,9 +115,10 @@ if(page==='admin'){(async function(){
 if(page==='reset'){
  sb.auth.onAuthStateChange(function(ev){if(ev==='PASSWORD_RECOVERY'){$('ask').hidden=true;$('setp').hidden=false;}});
  $('ask').addEventListener('submit',async function(){
+  var cp=capt();if(!cp.ok)return;
   busy($('ask'),true);
-  await sb.auth.resetPasswordForEmail($('email').value.trim(),{redirectTo:location.origin+'/reset.html'});
-  busy($('ask'),false);say('If that email has an account, we sent a reset link to it.');
+  await sb.auth.resetPasswordForEmail($('email').value.trim(),{redirectTo:location.origin+'/reset.html',captchaToken:cp.opt.captchaToken});
+  busy($('ask'),false);recap();say('If that email has an account, we sent a reset link to it.');
  });
  $('setp').addEventListener('submit',async function(){
   if($('newpass').value.length<8)return say('Use a password with at least 8 characters.',true);
