@@ -28,3 +28,7 @@ button:disabled{opacity:.6;cursor:wait}
 #msg{min-height:1.5em;margin:12px 0;font-weight:600}.err{color:#ff9b9b}.ok{color:#9be6b0}
 dl{display:grid;grid-template-columns:max-content 1fr;gap:8px 18px}dt{color:var(--muted)}dd{margin:0}
 [hidden]{display:none!important}
+textarea{width:100%;padding:11px 12px;font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:8px;resize:vertical}
+textarea:focus-visible{outline:3px solid var(--gold);outline-offset:1px}
+button.alt{background:transparent;color:var(--text);border:1px solid var(--line)}
+.actions button{margin:8px 8px 0 0;padding:8px 14px;font-size:.9rem}

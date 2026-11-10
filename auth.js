@@ -59,6 +59,53 @@ if(page==='account'){(async function(){
  });
  $('logout').addEventListener('click',async function(){await sb.auth.signOut();location.href='login.html';});
 })();}
+if(page==='home'){(async function(){
+ var r=await sb.from('posts').select('title,body,published_at').eq('published',true).order('published_at',{ascending:false}).limit(10);
+ var el=$('posts');el.textContent='';
+ if(r.error){el.textContent='Posts could not be loaded right now.';return;}
+ if(!r.data.length){el.textContent='No posts yet.';return;}
+ r.data.forEach(function(p){var a=document.createElement('article'),h=document.createElement('h3'),d=document.createElement('p');
+  h.textContent=p.title;d.className='date';d.textContent=new Date(p.published_at).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'});a.append(h,d);
+  p.body.split(/\n{2,}/).forEach(function(t){var q=document.createElement('p');q.textContent=t;a.append(q);});el.append(a);});
+})();}
+if(page==='admin'){(async function(){
+ var s=(await sb.auth.getSession()).data.session;
+ if(!s){location.href='login.html';return;}
+ var me=await sb.from('profiles').select('role').eq('id',s.user.id).single();
+ if(me.error||me.data.role!=='admin'){say('This page is for admins only.',true);return;}
+ $('panel').hidden=false;
+ function clear(){$('pform').reset();$('pid').value='';$('ppat').value='';}
+ async function load(){
+  var r=await sb.from('posts').select('id,title,body,published,published_at,created_at').order('created_at',{ascending:false});
+  var el=$('plist');el.textContent='';
+  if(r.error){say('Could not load posts.',true);return;}
+  if(!r.data.length){el.textContent='No posts yet.';return;}
+  r.data.forEach(function(p){
+   var a=document.createElement('article'),h=document.createElement('h3'),d=document.createElement('p'),b=document.createElement('div');
+   h.textContent=p.title;d.className='date';d.textContent=p.published?'Published':'Draft';b.className='actions';
+   function btn(t,fn){var x=document.createElement('button');x.type='button';x.className='alt';x.textContent=t;x.addEventListener('click',fn);b.append(x);}
+   btn('Edit',function(){$('pid').value=p.id;$('ppat').value=p.published_at||'';$('ptitle').value=p.title;$('pbody').value=p.body;$('ppub').checked=p.published;window.scrollTo(0,0);});
+   btn(p.published?'Unpublish':'Publish',async function(){
+    var e=await sb.from('posts').update({published:!p.published,published_at:p.published_at||new Date().toISOString()}).eq('id',p.id);
+    if(e.error)say('Could not change the post.',true);else{say('Saved.');load();}});
+   btn('Delete',async function(){
+    if(!confirm('Delete this post for good?'))return;
+    var e=await sb.from('posts').delete().eq('id',p.id);
+    if(e.error)say('Could not delete the post.',true);else{say('Deleted.');load();}});
+   a.append(h,d,b);el.append(a);});
+ }
+ $('pnew').addEventListener('click',clear);
+ $('pform').addEventListener('submit',async function(){
+  var pub=$('ppub').checked,pat=$('ppat').value,id=$('pid').value;
+  var row={title:$('ptitle').value.trim(),body:$('pbody').value.trim(),published:pub,published_at:pub?(pat||new Date().toISOString()):(pat||null)};
+  busy($('pform'),true);
+  var e=id?await sb.from('posts').update(row).eq('id',id):await sb.from('posts').insert(Object.assign({author_id:s.user.id},row));
+  busy($('pform'),false);
+  if(e.error)return say('Could not save the post.',true);
+  say('Saved.');clear();load();
+ });
+ load();
+})();}
 if(page==='reset'){
  sb.auth.onAuthStateChange(function(ev){if(ev==='PASSWORD_RECOVERY'){$('ask').hidden=true;$('setp').hidden=false;}});
  $('ask').addEventListener('submit',async function(){
