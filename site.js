@@ -1,7 +1,7 @@
 (function(){
 var page=location.pathname.split('/').pop()||'index.html';
 function link(h,t){return '<a href="'+h+'"'+(page===h?' aria-current="page"':'')+'>'+t+'</a>';}
-var SIGNUP_OPEN=false; // change to true when you want to show "Create account" in the menu
+var SIGNUP_OPEN=true; // change to true when you want to show "Create account" in the menu
 var signed=false;
 try{for(var i=0;i<localStorage.length;i++){if(/^sb-.*-auth-token$/.test(localStorage.key(i))){signed=true;}}}catch(e){}
 var acct=signed?link('account.html','Account'):link('login.html','Log in')+(SIGNUP_OPEN?link('register.html','Create account'):'');
