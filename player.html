@@ -1,0 +1,15 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Player profile | Clashers Union by Rowdy</title><meta name="description" content="Public Clash of Clans player profile on Clashers Union by Rowdy.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231a1530'/%3E%3Ctext x='16' y='23' font-size='20' text-anchor='middle' fill='%23f2b63c' font-family='Georgia' font-weight='700'%3ECU%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css"></head><body data-page="player"><main class="wrap">
+<h1>Player profile</h1>
+<p class="lead">Look up any Clash of Clans player by tag. Only public in-game info is shown.</p>
+<form id="sform"><label for="stag">Player tag</label><input id="stag" type="text" maxlength="14" autocapitalize="characters" autocomplete="off" required><button type="submit">Look up</button></form>
+<p id="msg" role="status"></p>
+<article id="card" hidden>
+<h2 id="pname"></h2><p id="pbadge" class="badge" hidden>Member of Clashers Union</p>
+<dl id="pdl"></dl>
+<p id="pmeta" class="date"></p>
+<button id="pshare" type="button" class="alt">Copy link</button>
+</article>
+</main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script><script src="config.js"></script><script src="auth.js"></script><script src="site.js"></script></body></html>

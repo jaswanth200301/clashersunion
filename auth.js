@@ -40,7 +40,7 @@ if(page==='account'){(async function(){
  var d=r.data;
  $('v_name').textContent=d.player_name;$('v_tag').textContent=d.player_tag;
  $('v_clan').textContent=d.clan_name||'None';$('v_ctag').textContent=d.clan_tag||'None';
- $('v_status').textContent=d.tag_verified?'Verified':'Not verified yet';$('v_email').textContent=s.user.email;
+ $('v_status').textContent=d.tag_verified?'Verified':'Not verified yet';$('v_email').textContent=s.user.email;$('v_pub').href='player.html?tag='+encodeURIComponent(d.player_tag.slice(1));
  $('verify').hidden=!!d.tag_verified;
  $('vform').addEventListener('submit',async function(){
   busy($('vform'),true);
@@ -112,6 +112,36 @@ if(page==='admin'){(async function(){
  });
  load();
 })();}
+if(page==='player'){
+ var load=async function(t){
+  $('card').hidden=true;say('Loading...');
+  var r=await sb.functions.invoke('super-api',{body:{action:'profile',tag:t}});
+  var o=r.data||{};
+  if(!o.ok)return say(o.message||'We could not load this profile. Try again in a moment.',true);
+  var d=o.player;box.textContent='';box.className='';
+  $('pname').textContent=d.name;document.title=d.name+' | Clashers Union by Rowdy';
+  $('pbadge').hidden=!o.member;
+  var dl=$('pdl');dl.textContent='';
+  function row(k,v){if(v===null||v===undefined||v==='')return;var a=document.createElement('dt'),b=document.createElement('dd');a.textContent=k;b.textContent=String(v);dl.append(a,b);}
+  row('Player tag',d.tag);row('Town Hall',d.townHallLevel);row('XP level',d.expLevel);
+  row('Trophies',d.trophies);row('Best trophies',d.bestTrophies);row('League',d.league);
+  row('War stars',d.warStars);row('Attack wins',d.attackWins);row('Defense wins',d.defenseWins);
+  row('Clan',d.clanName?d.clanName+' ('+d.clanTag+')':'No clan');row('Clan role',d.role);
+  row('Builder Hall',d.builderHallLevel);row('Donations given',d.donations);row('Donations received',d.donationsReceived);
+  (d.heroes||[]).forEach(function(h){row(h.name,h.level+' / '+h.maxLevel);});
+  $('pmeta').textContent='Last updated: '+new Date(o.fetchedAt).toLocaleString('en-IN')+(o.stale?'. The game server is not answering, so this is a saved copy.':'');
+  $('card').hidden=false;
+  $('pshare').onclick=function(){var u=location.origin+location.pathname+'?tag='+encodeURIComponent(d.tag.slice(1));
+   if(navigator.clipboard)navigator.clipboard.writeText(u).then(function(){say('Link copied.');});else say(u);};
+ };
+ $('sform').addEventListener('submit',function(){
+  var t=tag($('stag').value);
+  if(!TAG.test(t))return say('Enter a valid player tag, like #2PYLQ80.',true);
+  location.href='player.html?tag='+encodeURIComponent(t.slice(1));
+ });
+ var q=new URLSearchParams(location.search).get('tag');
+ if(q){$('stag').value=tag(q);load(tag(q));}
+}
 if(page==='reset'){
  sb.auth.onAuthStateChange(function(ev){if(ev==='PASSWORD_RECOVERY'){$('ask').hidden=true;$('setp').hidden=false;}});
  $('ask').addEventListener('submit',async function(){
