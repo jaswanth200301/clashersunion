@@ -38,7 +38,7 @@ if(page==='account'){(async function(){
  $('verify').hidden=!!d.tag_verified;
  $('vform').addEventListener('submit',async function(){
   busy($('vform'),true);
-  var r=await sb.functions.invoke('verify-player',{body:{token:$('vtoken').value.trim()}});
+  var r=await sb.functions.invoke('super-api',{body:{token:$('vtoken').value.trim()}});
   busy($('vform'),false);
   var o=r.data||{};
   if(!o.message){
