@@ -33,3 +33,5 @@ textarea:focus-visible{outline:3px solid var(--gold);outline-offset:1px}
 button.alt{background:transparent;color:var(--text);border:1px solid var(--line)}
 .actions button{margin:8px 8px 0 0;padding:8px 14px;font-size:.9rem}
 .badge{display:inline-block;padding:2px 12px;border:1px solid var(--gold);border-radius:999px;color:var(--gold);font-size:.85rem;margin:0 0 8px}
+input[type=number],select{width:100%;padding:11px 12px;font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:8px}
+.list{list-style:none;padding:0;margin:0}.list li{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 12px;padding:10px 0;border-bottom:1px solid var(--line)}.list .badge{margin:0}

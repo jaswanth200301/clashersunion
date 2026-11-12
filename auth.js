@@ -112,6 +112,10 @@ if(page==='admin'){(async function(){
  });
  load();
 })();}
+var JOIN={open:'Anyone can join',inviteOnly:'Invite only',closed:'Closed'};
+var WARF={always:'Always',moreThanOncePerWeek:'More than once a week',oncePerWeek:'Once a week',lessThanOncePerWeek:'Less than once a week',never:'Never',unknown:'Unknown'};
+function ptag(t){return 'player.html?tag='+encodeURIComponent(String(t).replace('#',''));}
+function ctag(t){return 'clan.html?tag='+encodeURIComponent(String(t).replace('#',''));}
 if(page==='player'){
  var load=async function(t){
   $('card').hidden=true;say('Loading...');
@@ -126,7 +130,7 @@ if(page==='player'){
   row('Player tag',d.tag);row('Town Hall',d.townHallLevel);row('XP level',d.expLevel);
   row('Trophies',d.trophies);row('Best trophies',d.bestTrophies);row('League',d.league);
   row('War stars',d.warStars);row('Attack wins',d.attackWins);row('Defense wins',d.defenseWins);
-  row('Clan',d.clanName?d.clanName+' ('+d.clanTag+')':'No clan');row('Clan role',d.role);
+  row('Clan',d.clanName?d.clanName+' ('+d.clanTag+')':'No clan');row('Clan role',d.role);if(d.clanTag){var ta=document.createElement('dt'),tb=document.createElement('dd'),ln=document.createElement('a');ta.textContent='Clan page';ln.href=ctag(d.clanTag);ln.textContent='View '+d.clanName;tb.append(ln);dl.append(ta,tb);}
   row('Builder Hall',d.builderHallLevel);row('Donations given',d.donations);row('Donations received',d.donationsReceived);
   (d.heroes||[]).forEach(function(h){row(h.name,h.level+' / '+h.maxLevel);});
   $('pmeta').textContent='Last updated: '+new Date(o.fetchedAt).toLocaleString('en-IN')+(o.stale?'. The game server is not answering, so this is a saved copy.':'');
@@ -142,6 +146,53 @@ if(page==='player'){
  var q=new URLSearchParams(location.search).get('tag');
  if(q){$('stag').value=tag(q);load(tag(q));}
 }
+if(page==='clans'){
+ $('cform').addEventListener('submit',async function(){
+  var n=$('cname').value.trim();
+  if(n.length<3)return say('Type at least 3 letters of the clan name.',true);
+  var lv=parseInt($('clevel').value,10)||0,mm=parseInt($('cmem').value,10)||0;
+  busy($('cform'),true);say('Searching...');
+  var r=await sb.functions.invoke('super-api',{body:{action:'clansearch',name:n,minClanLevel:lv,minMembers:mm}});
+  busy($('cform'),false);
+  var o=r.data||{};
+  if(!o.ok)return say(o.message||'Search failed. Try again.',true);
+  box.textContent='';box.className='';
+  var ul=$('cres');ul.textContent='';
+  if(!o.clans.length){say('No clans matched. Try a different name or fewer filters.');return;}
+  o.clans.forEach(function(c){var li=document.createElement('li'),a=document.createElement('a'),m=document.createElement('span');
+   a.href=ctag(c.tag);a.textContent=c.name+' ('+c.tag+')';
+   m.textContent='Level '+c.clanLevel+' - '+c.members+'/50 - '+(JOIN[c.type]||'');m.className='date';
+   li.append(a,m);ul.append(li);});
+ });
+}
+if(page==='clan'){(async function(){
+ var q=new URLSearchParams(location.search).get('tag');
+ if(!q){say('Open a clan from the clan search page.',true);return;}
+ say('Loading...');
+ var r=await sb.functions.invoke('super-api',{body:{action:'clan',tag:tag(q)}});
+ var o=r.data||{};
+ if(!o.ok)return say(o.message||'We could not load this clan. Try again in a moment.',true);
+ box.textContent='';box.className='';
+ var d=o.clan;document.title=d.name+' | Clashers Union by Rowdy';
+ $('ctitle').textContent=d.name;
+ var dl=$('cdl');
+ function row(k,v){if(v===null||v===undefined||v==='')return;var a=document.createElement('dt'),b=document.createElement('dd');a.textContent=k;b.textContent=String(v);dl.append(a,b);}
+ row('Clan tag',d.tag);row('Level',d.clanLevel);row('Members',d.members+' / 50');row('Clan points',d.clanPoints);
+ row('Who can join',JOIN[d.type]);row('Required trophies',d.requiredTrophies);row('War wins',d.warWins);row('War frequency',WARF[d.warFrequency]);row('Location',d.location);
+ $('cdesc').textContent=d.description||'';
+ var sm=o.siteMembers||[];
+ $('cu').textContent=sm.length+' of this clan\'s members have a verified Clashers Union account.';
+ var ul=$('mlist');
+ d.memberList.forEach(function(m){var li=document.createElement('li'),a=document.createElement('a'),s=document.createElement('span');
+  a.href=ptag(m.tag);a.textContent=m.name;
+  s.textContent=(m.role?m.role+' - ':'')+m.trophies+' trophies';s.className='date';
+  if(sm.indexOf(m.tag)>-1){var b=document.createElement('span');b.className='badge';b.textContent='Member';li.append(a,b,s);}else li.append(a,s);
+  ul.append(li);});
+ $('cmeta').textContent='Last updated: '+new Date(o.fetchedAt).toLocaleString('en-IN')+(o.stale?'. The game server is not answering, so this is a saved copy.':'');
+ $('ccard').hidden=false;
+ $('cshare').onclick=function(){var u=location.origin+location.pathname+'?tag='+encodeURIComponent(d.tag.slice(1));
+  if(navigator.clipboard)navigator.clipboard.writeText(u).then(function(){say('Link copied.');});else say(u);};
+})();}
 if(page==='reset'){
  sb.auth.onAuthStateChange(function(ev){if(ev==='PASSWORD_RECOVERY'){$('ask').hidden=true;$('setp').hidden=false;}});
  $('ask').addEventListener('submit',async function(){
