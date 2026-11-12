@@ -35,3 +35,4 @@ button.alt{background:transparent;color:var(--text);border:1px solid var(--line)
 .badge{display:inline-block;padding:2px 12px;border:1px solid var(--gold);border-radius:999px;color:var(--gold);font-size:.85rem;margin:0 0 8px}
 input[type=number],select{width:100%;padding:11px 12px;font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:8px}
 .list{list-style:none;padding:0;margin:0}.list li{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 12px;padding:10px 0;border-bottom:1px solid var(--line)}.list .badge{margin:0}
+.chat{max-height:60vh;overflow-y:auto;padding-right:6px}.chat li{display:block}.mhead{display:flex;gap:10px;align-items:baseline}details{margin:16px 0}summary{cursor:pointer}

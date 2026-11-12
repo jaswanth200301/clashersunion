@@ -4,7 +4,7 @@ function link(h,t){return '<a href="'+h+'"'+(page===h?' aria-current="page"':'')
 var SIGNUP_OPEN=true; // change to true when you want to show "Create account" in the menu
 var signed=false;
 try{for(var i=0;i<localStorage.length;i++){if(/^sb-.*-auth-token$/.test(localStorage.key(i))){signed=true;}}}catch(e){}
-var acct=signed?link('account.html','Account'):link('login.html','Log in')+(SIGNUP_OPEN?link('register.html','Create account'):'');
+var acct=signed?link('chat.html','Chat')+link('account.html','Account'):link('login.html','Log in')+(SIGNUP_OPEN?link('register.html','Create account'):'');
 document.body.insertAdjacentHTML('afterbegin',
 '<header><div class="wrap"><a class="brand" href="index.html">Clashers Union<small>by Rowdy</small></a><nav aria-label="Main">'+link('index.html','Home')+link('about.html','About')+link('contact.html','Contact')+acct+'</nav></div></header>');
 document.body.insertAdjacentHTML('beforeend',

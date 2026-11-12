@@ -227,6 +227,119 @@ if(page==='adminusers'){(async function(){
  $('usearch').addEventListener('submit',load);
  load();
 })();}
+if(page==='chat'){(async function(){
+ var s=(await sb.auth.getSession()).data.session;
+ if(!s){location.href='login.html';return;}
+ var me=await sb.from('profiles').select('tag_verified,banned,role').eq('id',s.user.id).single();
+ if(me.error){say('We could not load your profile.',true);return;}
+ if(me.data.banned){say('Your account has been banned.',true);return;}
+ if(!me.data.tag_verified){say('Verify your player tag on your account page to use chat.',true);return;}
+ var isAdmin=me.data.role==='admin',blocked={},list=$('mlist');
+ $('chat').hidden=false;
+ function drawBlocked(){
+  var bl=$('blist');bl.textContent='';var ids=Object.keys(blocked);
+  if(!ids.length){bl.textContent='Nobody blocked.';return;}
+  ids.forEach(function(id){var li=document.createElement('li'),sp=document.createElement('span'),b=document.createElement('button');
+   sp.textContent=blocked[id];b.type='button';b.className='alt';b.textContent='Unblock';
+   b.addEventListener('click',async function(){
+    var e=await sb.from('blocks').delete().eq('blocked_id',id);
+    if(e.error)return say('Could not unblock. Try again.',true);
+    delete blocked[id];drawBlocked();redrawAll();say('Unblocked.');});
+   li.append(sp,b);bl.append(li);});
+ }
+ var all={};
+ function btn(box2,t,fn){var x=document.createElement('button');x.type='button';x.className='alt';x.textContent=t;x.addEventListener('click',fn);box2.append(x);}
+ function draw(m){
+  all[m.id]=m;
+  var li=document.getElementById('m-'+m.id),isNew=!li;
+  if(isNew){li=document.createElement('li');li.id='m-'+m.id;}
+  li.textContent='';
+  li.hidden=!!(m.author_id&&blocked[m.author_id]);
+  var head=document.createElement('div'),who,t=document.createElement('span'),body=document.createElement('div');
+  head.className='mhead';
+  if(m.author_id&&m.author_tag){who=document.createElement('a');who.href=ptag(m.author_tag);who.textContent=m.author_name;}
+  else{who=document.createElement('span');who.textContent='Former member';}
+  t.className='date';t.textContent=new Date(m.created_at).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  head.append(who,t);
+  body.textContent=m.deleted?'Message removed':m.body;if(m.deleted)body.className='date';
+  li.append(head,body);
+  if(!m.deleted){
+   var acts=document.createElement('div');acts.className='actions';
+   if(m.author_id===s.user.id||isAdmin)btn(acts,'Delete',async function(){
+    if(!confirm('Delete this message?'))return;
+    var x=await sb.functions.invoke('super-api',{body:{action:'delete_message',id:m.id}});
+    var o=x.data||{};if(!o.ok)say(o.message||'Could not delete.',true);});
+   if(m.author_id&&m.author_id!==s.user.id){
+    btn(acts,'Report',async function(){
+     var why=prompt('Why are you reporting this message?');if(!why)return;
+     var x=await sb.functions.invoke('super-api',{body:{action:'report_message',id:m.id,reason:why}});
+     var o=x.data||{};say(o.message||'Could not send the report.',!o.ok);});
+    btn(acts,'Block',async function(){
+     if(!confirm('Block '+m.author_name+'? You will no longer see their messages.'))return;
+     var e=await sb.from('blocks').insert({blocker_id:s.user.id,blocked_id:m.author_id,blocked_name:m.author_name});
+     if(e.error)return say('Could not block. Try again.',true);
+     blocked[m.author_id]=m.author_name;drawBlocked();redrawAll();say('Blocked.');});
+   }
+   if(acts.children.length)li.append(acts);
+  }
+  if(isNew)list.append(li);
+ }
+ function redrawAll(){Object.keys(all).forEach(function(id){draw(all[id]);});}
+ function near(){return list.scrollHeight-list.scrollTop-list.clientHeight<80;}
+ async function load(){
+  var r=await sb.from('messages').select('id,author_id,author_name,author_tag,body,deleted,created_at').eq('channel','global').order('created_at',{ascending:false}).limit(50);
+  if(r.error){say('Could not load messages.',true);return;}
+  var stick=near();
+  r.data.reverse().forEach(draw);
+  if(stick)list.scrollTop=list.scrollHeight;
+ }
+ var br=await sb.from('blocks').select('blocked_id,blocked_name');
+ (br.data||[]).forEach(function(b){blocked[b.blocked_id]=b.blocked_name;});
+ drawBlocked();
+ await load();list.scrollTop=list.scrollHeight;
+ sb.channel('global-chat').on('postgres_changes',{event:'*',schema:'public',table:'messages',filter:'channel=eq.global'},function(p){
+  if(p.new&&p.new.id){var stick=near();draw(p.new);if(stick)list.scrollTop=list.scrollHeight;}
+ }).subscribe();
+ $('cform').addEventListener('submit',async function(){
+  var text=$('cbody').value.trim();if(!text)return;
+  busy($('cform'),true);
+  var x=await sb.functions.invoke('super-api',{body:{action:'send_message',body:text}});
+  busy($('cform'),false);
+  var o=x.data||{};
+  if(!o.ok)return say(o.message||'The message could not be sent. Try again.',true);
+  box.textContent='';box.className='';$('cbody').value='';$('cbody').focus();load();
+ });
+})();}
+if(page==='adminreports'){(async function(){
+ var s=(await sb.auth.getSession()).data.session;
+ if(!s){location.href='login.html';return;}
+ var me=await sb.from('profiles').select('role').eq('id',s.user.id).single();
+ if(me.error||me.data.role!=='admin'){say('This page is for admins only.',true);return;}
+ $('panel').hidden=false;
+ async function load(){
+  var r=await sb.from('reports').select('id,reporter_name,message_id,reported_user_id,reported_name,message_body,reason,created_at').eq('status','open').order('created_at',{ascending:true});
+  var el=$('rlist');el.textContent='';
+  if(r.error){say('Could not load reports.',true);return;}
+  if(!r.data.length){el.textContent='No open reports.';return;}
+  r.data.forEach(function(p){
+   var li=document.createElement('li'),h=document.createElement('strong'),m=document.createElement('p'),w=document.createElement('p'),b=document.createElement('div');
+   h.textContent=p.reported_name;m.textContent=p.message_body;
+   w.className='date';w.textContent='Reason: '+p.reason+' (reported by '+p.reporter_name+')';b.className='actions';
+   function act(t,fn){var x=document.createElement('button');x.type='button';x.className='alt';x.textContent=t;x.addEventListener('click',fn);b.append(x);}
+   async function resolve(){var e=await sb.from('reports').update({status:'resolved'}).eq('id',p.id);if(e.error)say('Could not close the report.',true);else load();}
+   if(p.message_id)act('Remove message',async function(){
+    var x=await sb.functions.invoke('super-api',{body:{action:'delete_message',id:p.message_id}});
+    var o=x.data||{};if(!o.ok)return say(o.message||'Could not remove it.',true);say('Message removed.');resolve();});
+   if(p.reported_user_id)act('Ban user',async function(){
+    if(!confirm('Ban '+p.reported_name+'?'))return;
+    var x=await sb.functions.invoke('super-api',{body:{action:'admin_ban',id:p.reported_user_id,banned:true}});
+    var o=x.data||{};say(o.message||'Something went wrong.',!o.ok);});
+   act('Dismiss',resolve);
+   var d=document.createElement('div');d.append(h,m,w,b);li.append(d);el.append(li);
+  });
+ }
+ load();
+})();}
 if(page==='reset'){
  sb.auth.onAuthStateChange(function(ev){if(ev==='PASSWORD_RECOVERY'){$('ask').hidden=true;$('setp').hidden=false;}});
  $('ask').addEventListener('submit',async function(){
