@@ -193,6 +193,40 @@ if(page==='clan'){(async function(){
  $('cshare').onclick=function(){var u=location.origin+location.pathname+'?tag='+encodeURIComponent(d.tag.slice(1));
   if(navigator.clipboard)navigator.clipboard.writeText(u).then(function(){say('Link copied.');});else say(u);};
 })();}
+if(page==='adminusers'){(async function(){
+ var s=(await sb.auth.getSession()).data.session;
+ if(!s){location.href='login.html';return;}
+ var me=await sb.from('profiles').select('role').eq('id',s.user.id).single();
+ if(me.error||me.data.role!=='admin'){say('This page is for admins only.',true);return;}
+ $('panel').hidden=false;
+ async function load(){
+  var q=$('uq').value.replace(/[^A-Za-z0-9#_ -]/g,'').trim();
+  var req=sb.from('profiles').select('id,player_name,player_tag,role,tag_verified,banned,created_at').order('created_at',{ascending:false}).limit(50);
+  if(q)req=req.or('player_name.ilike.%'+q+'%,player_tag.ilike.%'+q+'%');
+  var r=await req;
+  var el=$('ulist');el.textContent='';
+  if(r.error){say('Could not load users.',true);return;}
+  if(!r.data.length){el.textContent='No users found.';return;}
+  r.data.forEach(function(p){
+   var li=document.createElement('li'),info=document.createElement('span'),a=document.createElement('a');
+   a.href=ptag(p.player_tag);a.textContent=p.player_name+' ('+p.player_tag+')';
+   info.className='date';info.textContent=[p.role,p.tag_verified?'verified':'not verified',p.banned?'BANNED':''].filter(Boolean).join(' - ');
+   li.append(a,info);
+   if(p.role!=='admin'&&p.id!==s.user.id){
+    var b=document.createElement('button');b.type='button';b.className='alt';b.textContent=p.banned?'Unban':'Ban';
+    b.addEventListener('click',async function(){
+     if(!confirm((p.banned?'Unban ':'Ban ')+p.player_name+'?'))return;
+     var x=await sb.functions.invoke('super-api',{body:{action:'admin_ban',id:p.id,banned:!p.banned}});
+     var o=x.data||{};say(o.message||'Something went wrong.',!o.ok);if(o.ok)load();
+    });
+    li.append(b);
+   }
+   el.append(li);
+  });
+ }
+ $('usearch').addEventListener('submit',load);
+ load();
+})();}
 if(page==='reset'){
  sb.auth.onAuthStateChange(function(ev){if(ev==='PASSWORD_RECOVERY'){$('ask').hidden=true;$('setp').hidden=false;}});
  $('ask').addEventListener('submit',async function(){
