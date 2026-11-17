@@ -243,6 +243,7 @@ if(page==='chat'){(async function(){
   canMod=isAdmin||mr.data.chat_role==='owner'||mr.data.chat_role==='moderator';
   var cn=await sb.from('clans').select('name').eq('tag',ct).maybeSingle();
   $('chtitle').textContent=(cn.data?cn.data.name:ct)+' chat';
+  if(mr.data.chat_role!=='member'){$('mnglink').hidden=false;$('mnga').href='chat-manage.html?clan='+encodeURIComponent(ct.slice(1));}
   var mem=await sb.from('clan_chat_members').select('member_name,chat_role').eq('clan_tag',ct).order('joined_at',{ascending:true});
   var ml=$('memlist');ml.textContent='';
   (mem.data||[]).forEach(function(x){var li=document.createElement('li'),a=document.createElement('span'),b=document.createElement('span');a.textContent=x.member_name;b.className='date';b.textContent=x.chat_role;li.append(a,b);ml.append(li);});
@@ -356,7 +357,7 @@ if(page==='adminreports'){(async function(){
 if(page==='chats'){(async function(){
  var s=(await sb.auth.getSession()).data.session;
  if(!s){location.href='login.html';return;}
- var me=await sb.from('profiles').select('tag_verified,banned').eq('id',s.user.id).single();
+ var me=await sb.from('profiles').select('tag_verified,banned,player_tag').eq('id',s.user.id).single();
  if(me.error||me.data.banned){say('Chat is not available for this account.',true);return;}
  if(!me.data.tag_verified){say('Verify your player tag on your account page to use chat.',true);return;}
  $('panel').hidden=false;
@@ -376,6 +377,23 @@ if(page==='chats'){(async function(){
     var o=x.data||{};say(o.message||'Something went wrong.',!o.ok);if(o.ok)load();});
    li.append(a,sp,b);el.append(li);});
  }
+ async function redeem(code){
+  var x=await sb.functions.invoke('super-api',{body:{action:'redeem_invite',code:code}});
+  var o=x.data||{};say(o.message||'Something went wrong. Try again.',!o.ok);
+  if(o.ok){load();loadInv();}
+ }
+ async function loadInv(){
+  var r=await sb.from('invites').select('code,clan_tag,clans(name)').eq('target_tag',me.data.player_tag).eq('revoked',false).gt('expires_at',new Date().toISOString());
+  var el=$('invlist');el.textContent='';
+  if(r.error||!r.data.length){el.textContent='No invitations right now.';return;}
+  r.data.forEach(function(i){var li=document.createElement('li'),sp=document.createElement('span'),b=document.createElement('button');
+   sp.textContent=i.clans?i.clans.name:i.clan_tag;b.type='button';b.textContent='Accept';
+   b.addEventListener('click',function(){redeem(i.code);});li.append(sp,b);el.append(li);});
+ }
+ $('redeem').addEventListener('click',function(){var cd=$('icode').value.trim();if(!cd)return say('Paste an invite code first.',true);redeem(cd);});
+ var ip=new URLSearchParams(location.search).get('invite');
+ if(ip){$('icode').value=ip;say('You opened an invite link. Press "Join with invite" to continue.');}
+ loadInv();
  $('joinmine').addEventListener('click',async function(){
   $('joinmine').disabled=true;
   var x=await sb.functions.invoke('super-api',{body:{action:'join_my_clan'}});
@@ -383,6 +401,84 @@ if(page==='chats'){(async function(){
   var o=x.data||{};say(o.message||'Something went wrong. Try again.',!o.ok);if(o.ok)load();
  });
  load();
+})();}
+if(page==='clan'){(async function(){
+ var q=new URLSearchParams(location.search).get('tag');if(!q)return;
+ var s=(await sb.auth.getSession()).data.session;if(!s)return;
+ var ct=tag(q);
+ var me=await sb.from('profiles').select('tag_verified,banned').eq('id',s.user.id).single();
+ if(me.error||!me.data.tag_verified||me.data.banned)return;
+ var c=await sb.from('clans').select('tag').eq('tag',ct).maybeSingle();
+ var mm=await sb.from('clan_chat_members').select('chat_role').eq('user_id',s.user.id).eq('clan_tag',ct).maybeSingle();
+ var el=$('cact');
+ if(mm.data){var a=document.createElement('a');a.href='chat.html?clan='+encodeURIComponent(ct.slice(1));a.textContent='Open this clan\'s chat';el.append(a);return;}
+ if(!c.data){el.textContent='No chat exists for this clan yet. It is created when one of its members joins from the Chats page.';return;}
+ var b=document.createElement('button');b.type='button';b.textContent='Request to join this clan\'s chat';
+ b.addEventListener('click',async function(){
+  b.disabled=true;
+  var x=await sb.functions.invoke('super-api',{body:{action:'request_join',clan:ct}});
+  var o=x.data||{};say(o.message||'Something went wrong. Try again.',!o.ok);b.disabled=false;
+ });
+ el.append(b);
+})();}
+if(page==='manage'){(async function(){
+ var s=(await sb.auth.getSession()).data.session;if(!s){location.href='login.html';return;}
+ var q=new URLSearchParams(location.search).get('clan');if(!q){say('Open this page from a chat.',true);return;}
+ var ct=tag(q);
+ var mr=await sb.from('clan_chat_members').select('chat_role').eq('user_id',s.user.id).eq('clan_tag',ct).maybeSingle();
+ if(!mr.data||mr.data.chat_role==='member'){say('Only chat owners and moderators can open this page.',true);return;}
+ var myRole=mr.data.chat_role;
+ $('back').href='chat.html?clan='+encodeURIComponent(ct.slice(1));
+ var cn=await sb.from('clans').select('name').eq('tag',ct).maybeSingle();
+ $('mtitle').textContent='Manage '+(cn.data?cn.data.name:ct)+' chat';
+ $('panel').hidden=false;
+ async function call(b,done){var x=await sb.functions.invoke('super-api',{body:b});var o=x.data||{};say(o.message||'Something went wrong. Try again.',!o.ok);if(o.ok)done();}
+ function mk(t,fn){var b=document.createElement('button');b.type='button';b.className='alt';b.textContent=t;b.addEventListener('click',fn);return b;}
+ async function loadReq(){
+  var r=await sb.from('join_requests').select('id,user_name').eq('clan_tag',ct).eq('status','pending').order('created_at',{ascending:true});
+  var el=$('rq');el.textContent='';
+  if(r.error||!r.data.length){el.textContent='No pending requests.';return;}
+  r.data.forEach(function(p){var li=document.createElement('li'),sp=document.createElement('span'),d=document.createElement('div');
+   sp.textContent=p.user_name;d.className='actions';
+   d.append(mk('Approve',function(){call({action:'decide_request',id:p.id,approve:true},loadAll);}),mk('Reject',function(){call({action:'decide_request',id:p.id,approve:false},loadAll);}));
+   li.append(sp,d);el.append(li);});
+ }
+ async function loadMem(){
+  var r=await sb.from('clan_chat_members').select('user_id,member_name,chat_role').eq('clan_tag',ct).order('joined_at',{ascending:true});
+  var el=$('mb');el.textContent='';
+  (r.data||[]).forEach(function(m){var li=document.createElement('li'),sp=document.createElement('span'),d=document.createElement('div');
+   sp.textContent=m.member_name+' ('+m.chat_role+')';d.className='actions';
+   if(m.user_id!==s.user.id&&m.chat_role!=='owner'){
+    if(myRole==='owner')d.append(mk(m.chat_role==='moderator'?'Remove moderator':'Make moderator',function(){call({action:'set_chat_role',clan:ct,user_id:m.user_id,role:m.chat_role==='moderator'?'member':'moderator'},loadMem);}));
+    if(myRole==='owner'||m.chat_role==='member')d.append(mk('Remove',function(){if(confirm('Remove '+m.member_name+' from this chat?'))call({action:'remove_member',clan:ct,user_id:m.user_id},loadMem);}));
+   }
+   li.append(sp,d);el.append(li);});
+ }
+ async function loadInv(){
+  var r=await sb.from('invites').select('id,code,target_tag,max_uses,uses,expires_at').eq('clan_tag',ct).eq('revoked',false).gt('expires_at',new Date().toISOString()).order('created_at',{ascending:false});
+  var el=$('il');el.textContent='';
+  if(r.error||!r.data.length){el.textContent='No active invites.';return;}
+  r.data.forEach(function(i){var li=document.createElement('li'),sp=document.createElement('span'),d=document.createElement('div');
+   sp.textContent=(i.target_tag?'For '+i.target_tag:'Link, used '+i.uses+' of '+i.max_uses)+' - expires '+new Date(i.expires_at).toLocaleString('en-IN');
+   d.className='actions';
+   if(!i.target_tag)d.append(mk('Copy link',function(){var u=location.origin+'/chats.html?invite='+i.code;if(navigator.clipboard)navigator.clipboard.writeText(u).then(function(){say('Link copied.');});else say(u);}));
+   else d.append(mk('Copy code',function(){if(navigator.clipboard)navigator.clipboard.writeText(i.code).then(function(){say('Code copied.');});else say(i.code);}));
+   d.append(mk('Revoke',function(){call({action:'revoke_invite',id:i.id},loadInv);}));
+   li.append(sp,d);el.append(li);});
+ }
+ function loadAll(){loadReq();loadMem();loadInv();}
+ $('iform').addEventListener('submit',async function(){
+  var t=$('itag').value.trim(),b={action:'create_invite',clan:ct,hours:parseInt($('ihours').value,10),uses:parseInt($('iuses').value,10)||10};
+  if(t){t=tag(t);if(!TAG.test(t))return say('Enter a valid player tag, like #2PYLQ80.',true);b.target_tag=t;}
+  var x=await sb.functions.invoke('super-api',{body:b});var o=x.data||{};
+  if(!o.ok)return say(o.message||'Something went wrong. Try again.',true);
+  var link=location.origin+'/chats.html?invite='+o.code;
+  if(o.forPlayer)say('Invite created for '+t+'. They will see it on their Chats page.');
+  else if(navigator.clipboard)navigator.clipboard.writeText(link).then(function(){say('Invite created. Link copied.');},function(){say('Invite created: '+link);});
+  else say('Invite created: '+link);
+  $('itag').value='';loadInv();
+ });
+ loadAll();
 })();}
 if(page==='reset'){
  sb.auth.onAuthStateChange(function(ev){if(ev==='PASSWORD_RECOVERY'){$('ask').hidden=true;$('setp').hidden=false;}});

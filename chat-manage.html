@@ -1,0 +1,18 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Manage chat | Clashers Union by Rowdy</title><meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231a1530'/%3E%3Ctext x='16' y='23' font-size='20' text-anchor='middle' fill='%23f2b63c' font-family='Georgia' font-weight='700'%3ECU%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css"></head><body data-page="manage"><main class="wrap">
+<h1 id="mtitle">Manage chat</h1>
+<p><a id="back" href="chats.html">Back to chat</a></p>
+<p id="msg" role="status"></p>
+<section id="panel" hidden>
+<h2>Join requests</h2><ul id="rq" class="list"></ul>
+<h2>Members</h2><ul id="mb" class="list"></ul>
+<h2>Invites</h2>
+<form id="iform"><label for="itag">Player tag (optional: makes the invite for one person)</label><input id="itag" type="text" maxlength="14" autocapitalize="characters" autocomplete="off">
+<label for="ihours">Expires after</label><select id="ihours"><option value="24">1 day</option><option value="48" selected>2 days</option><option value="168">7 days</option></select>
+<label for="iuses">Maximum uses (link invites)</label><input id="iuses" type="text" inputmode="numeric" value="10" maxlength="2">
+<button type="submit">Create invite</button></form>
+<ul id="il" class="list"></ul>
+</section>
+</main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script><script src="config.js"></script><script src="auth.js"></script><script src="site.js"></script></body></html>
