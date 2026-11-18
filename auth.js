@@ -236,6 +236,13 @@ if(page==='chat'){(async function(){
  if(!me.data.tag_verified){say('Verify your player tag on your account page to use chat.',true);return;}
  var isAdmin=me.data.role==='admin',blocked={},list=$('mlist');
  var cq=new URLSearchParams(location.search).get('clan'),chan='global',canMod=isAdmin;
+ var room=new URLSearchParams(location.search).get('room');
+ if(room==='leaders'){
+  await sb.functions.invoke('super-api',{body:{action:'check_leader'}});
+  var lp=await sb.from('profiles').select('is_leader').eq('id',s.user.id).single();
+  if(lp.error||!lp.data.is_leader){say('Only clan leaders and co-leaders can use this chat.',true);return;}
+  chan='leaders';$('chtitle').textContent='Leaders chat';
+ }
  if(cq){
   var ct=tag(cq);chan='clan:'+ct.slice(1);
   var mr=await sb.from('clan_chat_members').select('chat_role').eq('user_id',s.user.id).eq('clan_tag',ct).maybeSingle();
@@ -361,6 +368,7 @@ if(page==='chats'){(async function(){
  if(me.error||me.data.banned){say('Chat is not available for this account.',true);return;}
  if(!me.data.tag_verified){say('Verify your player tag on your account page to use chat.',true);return;}
  $('panel').hidden=false;
+ sb.functions.invoke('super-api',{body:{action:'check_leader'}}).then(function(x){if(x.data&&x.data.leader)$('leadli').hidden=false;});
  async function load(){
   var r=await sb.from('clan_chat_members').select('clan_tag,chat_role,clans(name)').eq('user_id',s.user.id).order('joined_at',{ascending:true});
   var el=$('clist');el.textContent='';
