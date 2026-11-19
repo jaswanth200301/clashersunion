@@ -112,6 +112,39 @@ if(page==='admin'){(async function(){
  });
  load();
 })();}
+var CAT={behavior:'Chat or user behavior',account:'Account problem',bug:'Bug',suggestion:'Suggestion',other:'Other'};
+var CST={open:'Open',in_review:'In review',resolved:'Resolved'};
+function cdraw(c,adm,reload){
+ var li=document.createElement('li'),wrap=document.createElement('div'),h=document.createElement('strong'),m=document.createElement('p'),d=document.createElement('p');
+ wrap.className='full';
+ h.textContent=(CAT[c.category]||c.category)+' - '+(CST[c.status]||c.status)+(adm?' - '+c.user_name:'');
+ m.className='date';m.textContent=new Date(c.created_at).toLocaleString('en-IN');
+ d.textContent=c.description;wrap.append(h,m,d);
+ if(c.screenshot_path){
+  var sh=document.createElement('button');sh.type='button';sh.className='alt';sh.textContent='View screenshot';
+  sh.addEventListener('click',async function(){
+   var r=await sb.storage.from('complaint-screenshots').createSignedUrl(c.screenshot_path,60);
+   if(r.data)window.open(r.data.signedUrl,'_blank','noopener');else say('Could not open the screenshot.',true);
+  });
+  wrap.append(sh);
+ }
+ (c.complaint_replies||[]).sort(function(a,b){return new Date(a.created_at)-new Date(b.created_at);}).forEach(function(r){
+  var p=document.createElement('p');p.textContent=(r.is_staff?'Clashers Union team':r.author_name)+': '+r.body;wrap.append(p);
+ });
+ var ta=document.createElement('textarea');ta.rows=3;ta.maxLength=2000;ta.setAttribute('aria-label','Your reply');wrap.append(ta);
+ var st=null;
+ if(adm){st=document.createElement('select');st.setAttribute('aria-label','Status');
+  [['','Keep status'],['open','Open'],['in_review','In review'],['resolved','Resolved']].forEach(function(o){var op=document.createElement('option');op.value=o[0];op.textContent=o[1];st.append(op);});
+  wrap.append(st);}
+ var send=document.createElement('button');send.type='button';send.className='alt';send.textContent='Send reply';
+ send.addEventListener('click',async function(){
+  var b={action:'reply_complaint',id:c.id,body:ta.value.trim()};if(st&&st.value)b.status=st.value;
+  if(!b.body&&!b.status)return say('Write a reply or choose a status.',true);
+  var x=await sb.functions.invoke('super-api',{body:b});var o=x.data||{};
+  say(o.message||'Something went wrong. Try again.',!o.ok);if(o.ok)reload();
+ });
+ wrap.append(send);li.append(wrap);return li;
+}
 var JOIN={open:'Anyone can join',inviteOnly:'Invite only',closed:'Closed'};
 var WARF={always:'Always',moreThanOncePerWeek:'More than once a week',oncePerWeek:'Once a week',lessThanOncePerWeek:'Less than once a week',never:'Never',unknown:'Unknown'};
 function ptag(t){return 'player.html?tag='+encodeURIComponent(String(t).replace('#',''));}
@@ -219,7 +252,13 @@ if(page==='adminusers'){(async function(){
      var x=await sb.functions.invoke('super-api',{body:{action:'admin_ban',id:p.id,banned:!p.banned}});
      var o=x.data||{};say(o.message||'Something went wrong.',!o.ok);if(o.ok)load();
     });
-    li.append(b);
+    var mb=document.createElement('button');mb.type='button';mb.className='alt';mb.textContent=p.role==='moderator'?'Remove moderator':'Make moderator';
+    mb.addEventListener('click',async function(){
+     if(!confirm((p.role==='moderator'?'Remove moderator role from ':'Make moderator: ')+p.player_name+'?'))return;
+     var x=await sb.functions.invoke('super-api',{body:{action:'admin_set_role',id:p.id,role:p.role==='moderator'?'member':'moderator'}});
+     var o=x.data||{};say(o.message||'Something went wrong.',!o.ok);if(o.ok)load();
+    });
+    li.append(b,mb);
    }
    el.append(li);
   });
@@ -235,7 +274,7 @@ if(page==='chat'){(async function(){
  if(me.data.banned){say('Your account has been banned.',true);return;}
  if(!me.data.tag_verified){say('Verify your player tag on your account page to use chat.',true);return;}
  var isAdmin=me.data.role==='admin',blocked={},list=$('mlist');
- var cq=new URLSearchParams(location.search).get('clan'),chan='global',canMod=isAdmin;
+ var cq=new URLSearchParams(location.search).get('clan'),chan='global',canMod=isAdmin||me.data.role==='moderator';
  var room=new URLSearchParams(location.search).get('room');
  if(room==='leaders'){
   await sb.functions.invoke('super-api',{body:{action:'check_leader'}});
@@ -335,7 +374,7 @@ if(page==='adminreports'){(async function(){
  var s=(await sb.auth.getSession()).data.session;
  if(!s){location.href='login.html';return;}
  var me=await sb.from('profiles').select('role').eq('id',s.user.id).single();
- if(me.error||me.data.role!=='admin'){say('This page is for admins only.',true);return;}
+ if(me.error||(me.data.role!=='admin'&&me.data.role!=='moderator')){say('This page is for admins and moderators only.',true);return;}
  $('panel').hidden=false;
  async function load(){
   var r=await sb.from('reports').select('id,reporter_name,message_id,reported_user_id,reported_name,message_body,reason,created_at').eq('status','open').order('created_at',{ascending:true});
@@ -351,7 +390,7 @@ if(page==='adminreports'){(async function(){
    if(p.message_id)act('Remove message',async function(){
     var x=await sb.functions.invoke('super-api',{body:{action:'delete_message',id:p.message_id}});
     var o=x.data||{};if(!o.ok)return say(o.message||'Could not remove it.',true);say('Message removed.');resolve();});
-   if(p.reported_user_id)act('Ban user',async function(){
+   if(p.reported_user_id&&me.data.role==='admin')act('Ban user',async function(){
     if(!confirm('Ban '+p.reported_name+'?'))return;
     var x=await sb.functions.invoke('super-api',{body:{action:'admin_ban',id:p.reported_user_id,banned:true}});
     var o=x.data||{};say(o.message||'Something went wrong.',!o.ok);});
@@ -487,6 +526,53 @@ if(page==='manage'){(async function(){
   $('itag').value='';loadInv();
  });
  loadAll();
+})();}
+if(page==='complaints'){(async function(){
+ var s=(await sb.auth.getSession()).data.session;
+ if(!s){location.href='login.html';return;}
+ async function load(){
+  var r=await sb.from('complaints').select('id,category,description,status,screenshot_path,created_at,complaint_replies(author_name,is_staff,body,created_at)').order('created_at',{ascending:false});
+  var el=$('clist');el.textContent='';
+  if(r.error){say('Could not load your complaints.',true);return;}
+  if(!r.data.length){el.textContent='You have not sent any complaints.';return;}
+  r.data.forEach(function(c){el.append(cdraw(c,false,load));});
+ }
+ $('cform').addEventListener('submit',async function(){
+  var d=$('cdesc').value.trim();
+  if(d.length<10)return say('Please describe the problem in at least 10 characters.',true);
+  var file=$('cfile').files[0],path=null;
+  if(file&&(['image/png','image/jpeg','image/webp'].indexOf(file.type)<0||file.size>3145728))return say('The screenshot must be a PNG, JPG or WebP image under 3 MB.',true);
+  busy($('cform'),true);
+  if(file){
+   var ext=file.type==='image/png'?'png':file.type==='image/webp'?'webp':'jpg';
+   path=s.user.id+'/'+Date.now()+'-'+Math.random().toString(36).slice(2,8)+'.'+ext;
+   var up=await sb.storage.from('complaint-screenshots').upload(path,file,{contentType:file.type});
+   if(up.error){busy($('cform'),false);return say('The screenshot could not be uploaded. Try a smaller image.',true);}
+  }
+  var x=await sb.functions.invoke('super-api',{body:{action:'submit_complaint',category:$('ccat').value,description:d,screenshot_path:path}});
+  busy($('cform'),false);
+  var o=x.data||{};say(o.message||'Something went wrong. Try again.',!o.ok);
+  if(o.ok){$('cform').reset();load();}
+ });
+ load();
+})();}
+if(page==='admincomplaints'){(async function(){
+ var s=(await sb.auth.getSession()).data.session;
+ if(!s){location.href='login.html';return;}
+ var me=await sb.from('profiles').select('role').eq('id',s.user.id).single();
+ if(me.error||me.data.role!=='admin'){say('This page is for admins only.',true);return;}
+ $('panel').hidden=false;
+ async function load(){
+  var st=$('cstat').value;
+  var q=sb.from('complaints').select('id,user_name,category,description,status,screenshot_path,created_at,complaint_replies(author_name,is_staff,body,created_at)').order('created_at',{ascending:false}).limit(50);
+  if(st!=='all')q=q.eq('status',st);
+  var r=await q;var el=$('alist');el.textContent='';
+  if(r.error){say('Could not load complaints.',true);return;}
+  if(!r.data.length){el.textContent='No complaints here.';return;}
+  r.data.forEach(function(c){el.append(cdraw(c,true,load));});
+ }
+ $('cstat').addEventListener('change',load);
+ load();
 })();}
 if(page==='reset'){
  sb.auth.onAuthStateChange(function(ev){if(ev==='PASSWORD_RECOVERY'){$('ask').hidden=true;$('setp').hidden=false;}});

@@ -1,0 +1,14 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Complaints | Clashers Union by Rowdy</title><meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231a1530'/%3E%3Ctext x='16' y='23' font-size='20' text-anchor='middle' fill='%23f2b63c' font-family='Georgia' font-weight='700'%3ECU%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css"></head><body data-page="complaints"><main class="wrap">
+<h1>Raise a complaint</h1>
+<p class="lead">Tell us about a problem. Only you and our team can see it.</p>
+<form id="cform"><label for="ccat">Category</label>
+<select id="ccat"><option value="behavior">Chat or user behavior</option><option value="account">Account problem</option><option value="bug">Bug</option><option value="suggestion">Suggestion</option><option value="other">Other</option></select>
+<label for="cdesc">What happened? (10 to 2000 characters)</label><textarea id="cdesc" rows="6" maxlength="2000" required></textarea>
+<label for="cfile">Screenshot (optional, PNG, JPG or WebP, up to 3 MB)</label><input id="cfile" type="file" accept="image/png,image/jpeg,image/webp">
+<button type="submit">Send complaint</button></form>
+<p id="msg" role="status"></p>
+<h2>Your complaints</h2><ul id="clist" class="list"></ul>
+</main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script><script src="config.js"></script><script src="auth.js"></script><script src="site.js"></script></body></html>
