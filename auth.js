@@ -28,7 +28,7 @@ if(page==='register'){var f=$('form');f.addEventListener('submit',async function
  busy(f,true);
  var r=await sb.auth.signUp({email:$('email').value.trim(),password:$('password').value,options:{captchaToken:cp.opt.captchaToken,emailRedirectTo:location.origin+'/login.html',data:{player_name:$('player_name').value.trim(),player_tag:pt,clan_name:$('clan_name').value.trim(),clan_tag:ct}}});
  busy(f,false);recap();
- if(r.error)return say('We could not create the account. Check your details. This player tag may already be registered.',true);
+ if(r.error)return say('We could not create the account. Check your details and try again. If you already have an account, log in instead.',true);
  f.reset();say('Almost done. Open the email we sent you, confirm your address, then log in.');
 });}
 if(page==='login'){var g=$('form');g.addEventListener('submit',async function(){
@@ -49,6 +49,16 @@ if(page==='account'){(async function(){
  $('v_clan').textContent=d.clan_name||'None';$('v_ctag').textContent=d.clan_tag||'None';
  $('v_status').textContent=d.tag_verified?'Verified':'Not verified yet';$('v_email').textContent=s.user.email;$('v_pub').href='player.html?tag='+encodeURIComponent(d.player_tag.slice(1));
  $('verify').hidden=!!d.tag_verified;
+ $('fixtag').hidden=!!d.tag_verified;
+ $('tform').addEventListener('submit',async function(){
+  var t=tag($('newtag').value);
+  if(!TAG.test(t))return say('Enter a valid player tag, like #2PYLQ80.',true);
+  busy($('tform'),true);
+  var x=await sb.functions.invoke('super-api',{body:{action:'change_tag',tag:t}});
+  busy($('tform'),false);
+  var o=x.data||{};say(o.message||'Something went wrong. Try again.',!o.ok);
+  if(o.ok){$('v_tag').textContent=t;$('v_pub').href='player.html?tag='+encodeURIComponent(t.slice(1));$('newtag').value='';}
+ });
  $('vform').addEventListener('submit',async function(){
   busy($('vform'),true);
   var r=await sb.functions.invoke('super-api',{body:{token:$('vtoken').value.trim()}});
