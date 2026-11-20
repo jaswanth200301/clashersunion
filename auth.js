@@ -503,6 +503,7 @@ if(page==='manage'){(async function(){
   (r.data||[]).forEach(function(m){var li=document.createElement('li'),sp=document.createElement('span'),d=document.createElement('div');
    sp.textContent=m.member_name+' ('+m.chat_role+')';d.className='actions';
    if(m.user_id!==s.user.id&&m.chat_role!=='owner'){
+    if(myRole==='owner')d.append(mk('Make owner',function(){if(confirm('Make '+m.member_name+' the owner? You will become a moderator.'))call({action:'transfer_owner',clan:ct,user_id:m.user_id},function(){location.reload();});}));
     if(myRole==='owner')d.append(mk(m.chat_role==='moderator'?'Remove moderator':'Make moderator',function(){call({action:'set_chat_role',clan:ct,user_id:m.user_id,role:m.chat_role==='moderator'?'member':'moderator'},loadMem);}));
     if(myRole==='owner'||m.chat_role==='member')d.append(mk('Remove',function(){if(confirm('Remove '+m.member_name+' from this chat?'))call({action:'remove_member',clan:ct,user_id:m.user_id},loadMem);}));
    }
@@ -640,6 +641,84 @@ if(page==='adminbroadcast'){(async function(){
   var o=x.data||{};say(o.message||'Something went wrong. Try again.',!o.ok);
   if(o.ok){$('bform').reset();$('bclanwrap').hidden=true;}
  });
+})();}
+if(page==='admindash'){(async function(){
+ var s=(await sb.auth.getSession()).data.session;
+ if(!s){location.href='login.html';return;}
+ var me=await sb.from('profiles').select('role').eq('id',s.user.id).single();
+ if(me.error||me.data.role!=='admin'){say('This page is for admins only.',true);return;}
+ $('panel').hidden=false;
+ var day=new Date(Date.now()-86400000).toISOString(),wk=new Date(Date.now()-7*86400000).toISOString();
+ function cnt(q){return q.then(function(r){return r.count===null?'?':r.count;});}
+ function P(){return sb.from('profiles').select('id',{count:'exact',head:true});}
+ function T(t){return sb.from(t).select('*',{count:'exact',head:true});}
+ var v=await Promise.all([cnt(P()),cnt(P().eq('tag_verified',true)),cnt(P().gte('created_at',wk)),cnt(P().eq('banned',true)),cnt(P().eq('role','moderator')),
+  cnt(T('reports').eq('status','open')),cnt(T('complaints').eq('status','open')),cnt(T('complaints').eq('status','in_review')),
+  cnt(T('clans')),cnt(T('messages').eq('channel','global').gte('created_at',day))]);
+ var rows=[['Users',v[0],null],['Verified users',v[1],null],['New users (7 days)',v[2],null],['Banned users',v[3],'admin-users.html'],['Site moderators',v[4],'admin-users.html'],
+  ['Open reports',v[5],'admin-reports.html'],['Open complaints',v[6],'admin-complaints.html'],['Complaints in review',v[7],'admin-complaints.html'],
+  ['Clan chats',v[8],'admin-clans.html'],['Global chat messages (24 hours)',v[9],null]];
+ var el=$('stats');
+ rows.forEach(function(r){var li=document.createElement('li'),a=document.createElement(r[2]?'a':'span'),b=document.createElement('strong');
+  a.textContent=r[0];if(r[2])a.href=r[2];b.textContent=String(r[1]);li.append(a,b);el.append(li);});
+})();}
+if(page==='adminclans'){(async function(){
+ var s=(await sb.auth.getSession()).data.session;
+ if(!s){location.href='login.html';return;}
+ var me=await sb.from('profiles').select('role').eq('id',s.user.id).single();
+ if(me.error||me.data.role!=='admin'){say('This page is for admins only.',true);return;}
+ $('panel').hidden=false;
+ function mk(t,fn){var b=document.createElement('button');b.type='button';b.className='alt';b.textContent=t;b.addEventListener('click',fn);return b;}
+ async function call(b,done){var x=await sb.functions.invoke('super-api',{body:b});var o=x.data||{};say(o.message||'Something went wrong. Try again.',!o.ok);if(o.ok)done();}
+ var cur=null;
+ async function showClan(c){
+  cur=c;$('mpanel').hidden=false;$('mtitle').textContent=c.name+' ('+c.tag+')';
+  var r=await sb.from('clan_chat_members').select('user_id,member_name,chat_role').eq('clan_tag',c.tag).order('joined_at',{ascending:true});
+  var el=$('mlist');el.textContent='';
+  if(r.error){say('Could not load members.',true);return;}
+  r.data.forEach(function(m){var li=document.createElement('li'),sp=document.createElement('span'),d=document.createElement('div');
+   sp.textContent=m.member_name+' ('+m.chat_role+')';d.className='actions';
+   if(m.chat_role!=='owner'){
+    d.append(mk('Make owner',function(){if(confirm('Make '+m.member_name+' the owner of this chat?'))call({action:'transfer_owner',clan:c.tag,user_id:m.user_id},function(){showClan(c);});}));
+    d.append(mk(m.chat_role==='moderator'?'Remove moderator':'Make moderator',function(){call({action:'set_chat_role',clan:c.tag,user_id:m.user_id,role:m.chat_role==='moderator'?'member':'moderator'},function(){showClan(c);});}));
+    d.append(mk('Remove',function(){if(confirm('Remove '+m.member_name+' from this chat?'))call({action:'remove_member',clan:c.tag,user_id:m.user_id},function(){showClan(c);loadClans();});}));
+   }
+   li.append(sp,d);el.append(li);});
+ }
+ async function loadClans(){
+  var r=await sb.from('clans').select('tag,name,clan_chat_members(count)').order('name');
+  var el=$('clist');el.textContent='';
+  if(r.error){say('Could not load clans.',true);return;}
+  if(!r.data.length){el.textContent='No clan chats yet.';return;}
+  r.data.forEach(function(c){var li=document.createElement('li'),sp=document.createElement('span'),n=(c.clan_chat_members&&c.clan_chat_members[0])?c.clan_chat_members[0].count:0;
+   sp.textContent=c.name+' ('+c.tag+') - '+n+' members';
+   li.append(sp,mk('Open',function(){showClan(c);window.scrollTo(0,document.body.scrollHeight);}));el.append(li);});
+ }
+ loadClans();
+})();}
+if(page==='adminaudit'){(async function(){
+ var s=(await sb.auth.getSession()).data.session;
+ if(!s){location.href='login.html';return;}
+ var me=await sb.from('profiles').select('role').eq('id',s.user.id).single();
+ if(me.error||me.data.role!=='admin'){say('This page is for admins only.',true);return;}
+ $('panel').hidden=false;
+ var r=await sb.from('audit_log').select('admin_id,action,target_id,details,created_at').order('created_at',{ascending:false}).limit(100);
+ var el=$('alist');
+ if(r.error){say('Could not load the audit log.',true);return;}
+ if(!r.data.length){el.textContent='Nothing logged yet.';return;}
+ var ids={};r.data.forEach(function(x){if(x.admin_id)ids[x.admin_id]=1;if(x.target_id)ids[x.target_id]=1;});
+ var list=Object.keys(ids),names={};
+ for(var i=0;i<list.length;i+=50){
+  var pr=await sb.from('profiles').select('id,player_name').in('id',list.slice(i,i+50));
+  (pr.data||[]).forEach(function(p){names[p.id]=p.player_name;});
+ }
+ r.data.forEach(function(x){var li=document.createElement('li'),w=document.createElement('div'),h=document.createElement('strong'),d=document.createElement('p'),t=document.createElement('p');
+  w.className='full';
+  h.textContent=x.action+' - by '+(names[x.admin_id]||'unknown or deleted')+(x.target_id?' - on '+(names[x.target_id]||'unknown or deleted'):'');
+  d.className='date';d.textContent=new Date(x.created_at).toLocaleString('en-IN');
+  w.append(h,d);
+  if(x.details){t.className='date';t.textContent=JSON.stringify(x.details);w.append(t);}
+  li.append(w);el.append(li);});
 })();}
 if(page==='reset'){
  sb.auth.onAuthStateChange(function(ev){if(ev==='PASSWORD_RECOVERY'){$('ask').hidden=true;$('setp').hidden=false;}});
