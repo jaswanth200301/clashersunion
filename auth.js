@@ -9,6 +9,13 @@ var CF=C.TURNSTILE_SITE_KEY&&String(C.TURNSTILE_SITE_KEY).indexOf('PASTE')!==0,w
 if(CF&&$('cf')){var tw=setInterval(function(){if(window.turnstile){clearInterval(tw);wid=window.turnstile.render('#cf',{sitekey:C.TURNSTILE_SITE_KEY,theme:'dark'});}},200);}
 function capt(){if(!CF)return{ok:true,opt:{}};var k=wid!==null?window.turnstile.getResponse(wid):'';if(!k){say('Please complete the check first.',true);return{ok:false};}return{ok:true,opt:{captchaToken:k}};}
 function recap(){if(CF&&wid!==null)window.turnstile.reset(wid);}
+sb.auth.getSession().then(function(r){
+ if(!r.data.session)return;
+ sb.from('notifications').select('id',{count:'exact',head:true}).is('read_at',null).then(function(c){
+  function put(){var a=document.querySelector('nav a[href="alerts.html"]');if(a&&c.count>0)a.textContent='Alerts ('+c.count+')';else if(!a)setTimeout(put,500);}
+  put();
+ });
+});
 var TAG=/^#[0289PYLQGRJCUV]{3,12}$/;
 function tag(v){return v.trim().toUpperCase().replace(/^#?/,'#').replace(/O/g,'0');}
 function busy(f,b){f.querySelector('button').disabled=b;}
@@ -573,6 +580,66 @@ if(page==='admincomplaints'){(async function(){
  }
  $('cstat').addEventListener('change',load);
  load();
+})();}
+if(page==='alerts'){(async function(){
+ var s=(await sb.auth.getSession()).data.session;
+ if(!s){location.href='login.html';return;}
+ var TYPES={join_request:'Join requests for chats I manage',request_decision:'Answers to my join requests',invite:'Invitations to clan chats',complaint:'Replies to my complaints',leaders_message:'Leaders chat activity',broadcast:'Announcements from the team'};
+ var pr=await sb.from('notification_prefs').select('prefs').eq('user_id',s.user.id).maybeSingle();
+ var prefs=(pr.data&&pr.data.prefs)||{};
+ Object.keys(TYPES).forEach(function(k){
+  var lb=document.createElement('label'),cb=document.createElement('input');
+  lb.className='check';cb.type='checkbox';cb.checked=prefs[k]!==false;
+  cb.addEventListener('change',async function(){
+   prefs[k]=cb.checked;
+   var e=await sb.from('notification_prefs').upsert({user_id:s.user.id,prefs:prefs});
+   say(e.error?'Could not save. Try again.':'Saved.',!!e.error);
+  });
+  lb.append(cb,document.createTextNode(' '+TYPES[k]));$('plist').append(lb);
+ });
+ function safe(l){return typeof l==='string'&&/^[a-z0-9-]+\.html(\?[A-Za-z0-9=&%_.-]*)?$/.test(l);}
+ async function load(){
+  var r=await sb.from('notifications').select('id,title,body,link,read_at,created_at').order('created_at',{ascending:false}).limit(50);
+  var el=$('nlist');el.textContent='';
+  if(r.error){say('Could not load your alerts.',true);return;}
+  if(!r.data.length){el.textContent='No alerts yet.';return;}
+  r.data.forEach(function(n){
+   var li=document.createElement('li'),w=document.createElement('div'),h=document.createElement('strong'),b=document.createElement('p'),d=document.createElement('p');
+   w.className='full';h.textContent=(n.read_at?'':'New: ')+n.title;b.textContent=n.body;
+   d.className='date';d.textContent=new Date(n.created_at).toLocaleString('en-IN');
+   w.append(h,b,d);
+   var go=document.createElement('button');go.type='button';go.className='alt';go.textContent=safe(n.link)?'Open':(n.read_at?'':'Mark as read');
+   if(go.textContent){go.addEventListener('click',async function(){
+    if(!n.read_at)await sb.from('notifications').update({read_at:new Date().toISOString()}).eq('id',n.id);
+    if(safe(n.link))location.href=n.link;else load();});w.append(go);}
+   li.append(w);el.append(li);});
+ }
+ $('readall').addEventListener('click',async function(){
+  var e=await sb.from('notifications').update({read_at:new Date().toISOString()}).is('read_at',null);
+  if(e.error)return say('Could not update. Try again.',true);
+  say('All marked as read.');load();
+ });
+ load();
+})();}
+if(page==='adminbroadcast'){(async function(){
+ var s=(await sb.auth.getSession()).data.session;
+ if(!s){location.href='login.html';return;}
+ var me=await sb.from('profiles').select('role').eq('id',s.user.id).single();
+ if(me.error||me.data.role!=='admin'){say('This page is for admins only.',true);return;}
+ $('panel').hidden=false;
+ $('baud').addEventListener('change',function(){$('bclanwrap').hidden=$('baud').value!=='clan';});
+ $('bform').addEventListener('submit',async function(){
+  var t=$('btitle').value.trim(),m=$('bbody').value.trim();
+  if(!t||!m)return say('Write a title and a message.',true);
+  var b={action:'admin_broadcast',audience:$('baud').value,title:t,body:m};
+  if(b.audience==='clan'){var ct=tag($('bclan').value);if(!TAG.test(ct))return say('Enter a valid clan tag.',true);b.clan=ct;}
+  if(!confirm('Send this to: '+$('baud').options[$('baud').selectedIndex].text+'?'))return;
+  busy($('bform'),true);
+  var x=await sb.functions.invoke('super-api',{body:b});
+  busy($('bform'),false);
+  var o=x.data||{};say(o.message||'Something went wrong. Try again.',!o.ok);
+  if(o.ok){$('bform').reset();$('bclanwrap').hidden=true;}
+ });
 })();}
 if(page==='reset'){
  sb.auth.onAuthStateChange(function(ev){if(ev==='PASSWORD_RECOVERY'){$('ask').hidden=true;$('setp').hidden=false;}});
